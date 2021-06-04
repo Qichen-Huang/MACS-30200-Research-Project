@@ -1,0 +1,165 @@
+---
+title: "Visualization Code"
+subtitle: |
+  | University of Chicago
+author: "Qichen Huang"
+date: "03/10/2021"
+output:  
+  pdf_document: default
+  word_document: default
+---
+```{r}
+install.packages('Rmisc', dependencies = TRUE)
+```
+
+```{r message = FALSE}
+library(tidyverse)
+library(factoextra)
+library(patchwork)
+library(ggrepel)
+library(cluster)
+library(dplyr)
+library(e1071)
+library(tinytex)
+library(distances)
+library(corrplot)
+library(car)
+library(default)
+library(plyr)
+library(amerika)
+library(tictoc)
+library(kohonen)
+library(ggpubr)
+library(Rmisc)
+```
+
+## Preprocessing ##
+
+Read in the csr data. 2. Preprocess and clean the data.
+```{r read_in_data}
+csr <- read.csv("/Users/qichenhuang/Desktop/csr.csv",stringsAsFactors=TRUE) %>%
+  drop_na()
+```
+
+Create a subset of the data containing the main features.
+```{r 36_relevant_features_subset}
+csr_1 <- csr%>%
+  select(Year, Always_Mandated, ROE, TobinQ, Stock_Return, Free_Float_Marketcap, Total_Asset, Leverage, State_Owned)
+```
+
+## Exploration ##
+
+correlation plot 
+```{r message = FALSE}
+correlation <- cor(csr_1)
+round(correlation, 2)
+col <- colorRampPalette(c("#BB4444", "#EE9988", "#FFFFFF", "#77AADD", "#4477AA"))
+```
+
+```{r}
+corrplot(correlation, method="color", col=col(200), order="hclust", 
+         number.cex=0.75, addCoef.col = "black", tl.col="black", tl.srt=45, tl.cex = 0.75)
+```
+
+boxplots for control variables
+```{r}
+par(mfrow=c(2,2))
+boxplot(csr_1$Free_Float_Marketcap ~ csr_1$Always_Mandated,xlab="Free-float Marketcap", ylab="Mandatory Disclosure", col=3, main="Free-float Marketcap for Mandatory Disclosure vs. Non-disclosure", horizontal = TRUE)
+
+boxplot(csr_1$Total_Asset ~ csr_1$Always_Mandated,xlab="Total Asset", ylab="Mandatory Disclosure", col=3, main="Total Asset for Mandatory Disclosure vs. Non-disclosure", horizontal = TRUE)
+
+boxplot(csr_1$Leverage~ csr_1$Always_Mandated,xlab="Leverage", ylab="Mandatory Disclosure", col=3, main="Leverage for Mandatory Disclosure vs. Non-disclosure", horizontal = TRUE)
+```
+
+barplots for state ownership 
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+cross1<-table(csr_1$State_Owned, csr_1$Always_Mandated)
+barplot(cross1, ylab='State Owned',main="State Ownership Frequency",
+        cex.main=0.95,
+        col=c("darkblue","lightcyan")
+        ,legend=rownames(cross1), args.legend = list(x = "topright", cex = 0.65))
+barplot((prop.table(cross1,2)*100),ylab='State Owned',main="State Owned Percentage",
+        cex.main=0.95,
+        col=c("darkblue","lightcyan"),
+        legend=rownames((prop.table(cross1,2)*100)), args.legend = list(x = "topright", cex = 0.65))
+```
+
+```{r, echo=FALSE}
+round(prop.table(cross1,2)*100)
+```
+
+```{r}
+barplot((prop.table(cross1,2)*100), xlab='Always Mandated',ylab='State Owned',main="State Owned Percentage by Mandate",
+        cex.main=0.7,
+        col=c("darkblue","lightcyan"),
+        legend=rownames((prop.table(cross1,2)*100)), args.legend = list(x = "topright", cex = 0.65))
+```
+
+parallel trend test 
+
+ROE
+```{r}
+par(mfrow=c(1,2))
+plotdata <- csr_1 %>%
+  group_by(Year, Always_Mandated) %>%
+  dplyr::summarize(n = n(),
+            ROE_Mean = mean(ROE),
+            sd = sd(ROE),
+            se = sd/sqrt(n))
+
+ggplot(plotdata, aes(x = Year,
+                     y = ROE_Mean, 
+                     group=Always_Mandated, 
+                     color=Always_Mandated)) +
+  geom_point(size = 3) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin  =ROE_Mean - se, 
+                    ymax = ROE_Mean+se), 
+                width = .1)+ 
+  ggtitle("ROE mean plots with standard error bars by CSR disclosure status")
+```   
+
+Tobin's Q
+```{r}
+plotdata_1 <- csr_1 %>%
+  group_by(Year, Always_Mandated) %>%
+  dplyr::summarize(n = n(),
+            TobinQ_Mean = mean(TobinQ),
+            sd_1 = sd(TobinQ),
+            se_1 = sd_1/sqrt(n))
+
+# plot the means and standard errors by sex
+ggplot(plotdata_1, aes(x = Year,
+                     y = TobinQ_Mean, 
+                     group=Always_Mandated, 
+                     color=Always_Mandated)) +
+  geom_point(size = 3) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin  =TobinQ_Mean - se_1, 
+                    ymax = TobinQ_Mean + se_1), 
+                width = .1)+ 
+  ggtitle("TobinQ mean plots with standard error bars by CSR disclosure status")           
+```
+
+Stock return 
+```{r}
+plotdata_2 <- csr_1 %>%
+  group_by(Year, Always_Mandated) %>%
+  dplyr::summarize(n = n(),
+            Stock_Return_Mean = mean(Stock_Return),
+            sd_2 = sd(Stock_Return),
+            se_2 = sd_2/sqrt(n))
+
+# plot the means and standard errors by sex
+ggplot(plotdata_2, aes(x = Year,
+                     y = Stock_Return_Mean, 
+                     group=Always_Mandated, 
+                     color=Always_Mandated)) +
+  geom_point(size = 3) +
+  geom_line(size = 1) +
+  geom_errorbar(aes(ymin  =Stock_Return_Mean - se_2, 
+                    ymax = Stock_Return_Mean + se_2), 
+                width = .1)+ 
+  ggtitle("Stock return mean plots with standard error bars by CSR disclosure status")            
+```
