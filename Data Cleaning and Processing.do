@@ -7,21 +7,6 @@ global data "$path\raw data"
 global output "$path\output"
 global temp "`c(tmpdir)'"
 
-import excel using "$data\Shanghai 0510.xlsx", firstrow case(lower) clear
-save "$data\Shanghai_1.dta", replace
-import excel using "$data\Shanghai 1116.xlsx", firstrow case(lower) clear
-save "$data\Shanghai_2.dta", replace
-import excel using "$data\Shanghai 1720.xlsx", firstrow case(lower) clear
-save "$data\Shanghai_3.dta", replace
-import excel using "$data\Shenzhen 0510.xlsx", firstrow case(lower) clear
-save "$data\Shenzhen_1.dta", replace
-import excel using "$data\Shenzhen 1116.xlsx", firstrow case(lower) clear
-save "$data\Shenzhen_2.dta", replace
-import excel using "$data\Shenzhen 1720.xlsx", firstrow case(lower) clear
-save "$data\Shenzhen_3.dta", replace
-append using "$data\Shanghai_1.dta" "$data\Shanghai_2.dta" "$data\Shanghai_3.dta" "$data\Shenzhen_1.dta" "$data\Shenzhen_2.dta" 
-save "$data\CSR 2005_2020.dta", replace
-
 local f: dir "$data" files "*.xlsx"
 local n = 0
 foreach file of local f{
